@@ -1,22 +1,22 @@
-import { Column, Entity, PrimaryGeneratedColumn } from "typeorm";
+import { BeforeInsert, Column, Entity, PrimaryGeneratedColumn } from "typeorm";
 
 @Entity()
 export class Product {
 
     @PrimaryGeneratedColumn('uuid')
-    id:string;
+    id: string;
 
     @Column('text', {
         unique: true
     })
     title: string;
 
-    @Column('float',{
+    @Column('float', {
         default: 0
     })
     price: number;
 
-    @Column('text',{
+    @Column('text', {
         nullable: true
     })
     description: string;
@@ -26,16 +26,30 @@ export class Product {
     })
     slug: string;
 
-    @Column('int',{
+    @Column('int', {
         default: 0
     })
     stock: number;
 
-    @Column('text',{
+    @Column('text', {
         array: true
     })
     sizes: string[];
 
     @Column('text')
     gender: string;
+
+
+    @BeforeInsert()
+    checkSlugInsert() { // Se ejecuta antes de insertar en la BD
+
+        if (!this.slug) {
+            this.slug = this.title
+        }
+
+        this.slug = this.slug
+            .toLowerCase()
+            .replaceAll(' ', '_')
+            .replaceAll("'", '')
+    }
 }
