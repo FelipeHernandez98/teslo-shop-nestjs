@@ -50,9 +50,9 @@ export class ProductsService {
     }else {
       const queryBuilder = this.productRespository.createQueryBuilder(); // Para crear QUERYS personalizadas
       product = await queryBuilder
-        .where('title =:title or slug =:slug', {
-          title: id,
-          slug: id
+        .where('UPPER(title) =:title or slug =:slug', {
+          title: id.toUpperCase(),
+          slug: id.toLowerCase()
         }).getOne();
     }
 
