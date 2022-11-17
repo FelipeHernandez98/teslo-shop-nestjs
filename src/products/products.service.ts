@@ -48,7 +48,12 @@ export class ProductsService {
     if( isUUID( id ) ) {
       product = await this.productRespository.findOneBy({id});
     }else {
-      product = await this.productRespository.findOneBy({ slug: id });
+      const queryBuilder = this.productRespository.createQueryBuilder(); // Para crear QUERYS personalizadas
+      product = await queryBuilder
+        .where('title =:title or slug =:slug', {
+          title: id,
+          slug: id
+        }).getOne();
     }
 
     if( !product ) throw new NotFoundException(`El producto con id: ${ id } no existe`);
