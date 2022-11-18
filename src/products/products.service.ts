@@ -5,9 +5,9 @@ import { Repository } from 'typeorm';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { PaginationDto } from 'src/common/dtos/pagination.dto';
-import { Product } from './entities/product.entity';
 
 import { validate as isUUID } from 'uuid'
+import { ProductImage, Product } from './entities';
 
 
 @Injectable()
@@ -18,12 +18,20 @@ export class ProductsService {
   constructor(
     @InjectRepository(Product)
     private readonly productRespository: Repository<Product>,
+    
+    @InjectRepository(ProductImage)
+    private readonly producImagesRepository: Repository<ProductImage>,
   ){}
 
   async create(createProductDto: CreateProductDto) {
     try {
+      const { images = [], ...productDetails } = createProductDto;
 
-      const producto = this.productRespository.create(createProductDto);
+      const producto = await this.productRespository.create({
+        ...productDetails,// Se exparsen las demas propiedades del producto
+        images: images.map( image => this.producImagesRepository.create({ url: image }))// Se recorre las imagenes que vengan y se va creando la ProductImage una por una
+      });
+
       await this.productRespository.save( producto );
       return producto;
 
@@ -65,7 +73,8 @@ export class ProductsService {
     
     const product = await this.productRespository.preload({
       id: id,
-      ...updateProductDto
+      ...updateProductDto,
+      images: []
     }); 
 
     if( !product ) throw new NotFoundException(`El producto con id: ${id} no existe`)
