@@ -143,5 +143,19 @@ export class ProductsService {
     this.logger.error(error)
     throw new InternalServerErrorException('Error desconocido, revisar logs del servidor');
   }
+
+  async deleteAllProducts(){
+    const query = this.productRespository.createQueryBuilder('product');
+
+    try {
+      return await query
+        .delete()
+        .where({})
+        .execute();
+        
+    } catch (error) {
+      this.handleDBExceptions(error);
+    }
+  }
 }
 
