@@ -1,6 +1,6 @@
 import { Injectable, InternalServerErrorException, Logger, BadRequestException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
@@ -21,6 +21,8 @@ export class ProductsService {
     
     @InjectRepository(ProductImage)
     private readonly producImagesRepository: Repository<ProductImage>,
+
+    private readonly dataSource: DataSource
   ){}
 
   async create(createProductDto: CreateProductDto) {
@@ -81,20 +83,45 @@ export class ProductsService {
   }
 
   async update(id: string, updateProductDto: UpdateProductDto) {
-    
-    const product = await this.productRespository.preload({
-      id: id,
-      ...updateProductDto,
-      images: []
-    }); 
 
-    if( !product ) throw new NotFoundException(`El producto con id: ${id} no existe`)
+    const { images, ...dataUpdate } = updateProductDto;
+    
+    const product = await this.productRespository.preload({id, ...dataUpdate }); 
+   
+    if( !product ) throw new NotFoundException(`El producto con id: ${id} no existe`);
+
+    // Create query runner
+    const queryRunner = this.dataSource.createQueryRunner(); // Para realziar varias query SQL sin impactar la BD hasta que se haga el commit 
+    await queryRunner.connect(); 
+    await queryRunner.startTransaction();
     
     try {
-      await this.productRespository.save( product );
+
+      if( images ){
+        await queryRunner.manager.delete( ProductImage, { product: { id } }) // Si vienen imagenes en el body, eliminamos las que hay guardadas para es id de producto
+
+        product.images = images.map(
+          image => this.producImagesRepository.create({ url: image }) // Creamos las instancias de las nuevas imagenes que vienen
+        )
+
+      }else {
+        // ???
+        product.images = await this.producImagesRepository.findBy({ product: { id }})
+      }
+
+      await queryRunner.manager.save( product ); // Guardamos el producto con las imagenes nuevas
+
+      await queryRunner.commitTransaction(); // Si hasta aquí no ha habido ningun error se impacta la BD, de lo contrario se cancela todo lo anetrior inlcuyendo la eliminación de las imagenes
+      await queryRunner.release(); // Se cierra el queryRunner y no funciona mas
+
+      //await this.productRespository.save( product );
       return product; 
       
     } catch (error) {
+
+      await queryRunner.rollbackTransaction(); // Para revertir todas las transacciones SQL quese hicieron
+      await queryRunner.release(); 
+
       this.handleDBExceptions(error);
     }
   }
