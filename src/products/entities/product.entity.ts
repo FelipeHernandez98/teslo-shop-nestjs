@@ -49,7 +49,7 @@ export class Product {
     @OneToMany(// Un producto podrá tener mas de una imagen
         () => ProductImage,
         (productImage) => productImage.product,
-        { cascade: true }
+        { cascade: true, eager: true } //Con el eager lo que se hace es cuando busquen un producto ya sea todos o por id, muestre su relación también
     ) 
     images?: ProductImage[];
     

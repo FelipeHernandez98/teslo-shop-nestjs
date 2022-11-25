@@ -42,11 +42,20 @@ export class ProductsService {
 
   async findAll( paginationDto: PaginationDto) {
     const { limit = 10, offset = 0 } = paginationDto;
-    return await this.productRespository.find({
+    
+    const products= await this.productRespository.find({
       take: limit,
-      skip: offset
-      // TODO: Relaciones
+      skip: offset,
+      relations: {
+        images: true
+      }
     }); 
+
+    return products.map( ( product ) => ({
+      ...product,
+      images: product.images.map( img => img.url ) // Para solo devolver la url de la imagen
+    }));
+
   }
 
   async findOne(id: string) {
@@ -56,12 +65,14 @@ export class ProductsService {
     if( isUUID( id ) ) {
       product = await this.productRespository.findOneBy({id});
     }else {
-      const queryBuilder = this.productRespository.createQueryBuilder(); // Para crear QUERYS personalizadas
+      const queryBuilder = this.productRespository.createQueryBuilder('prod'); // Para crear QUERYS personalizadas (Un alias pata la tabla)
       product = await queryBuilder
         .where('UPPER(title) =:title or slug =:slug', {
           title: id.toUpperCase(),
           slug: id.toLowerCase()
-        }).getOne();
+        })
+        .leftJoinAndSelect('prod.images', 'prodImages') // Para traer los datos relacionados, en este caso de la tabla prod las imagenes, y prodImages se llamaran las images
+        .getOne();
     }
 
     if( !product ) throw new NotFoundException(`El producto con id: ${ id } no existe`);
